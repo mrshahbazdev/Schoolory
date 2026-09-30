@@ -8,6 +8,12 @@ import ChallansPanel from './components/ChallansPanel.jsx';
 import CollectionPanel from './components/CollectionPanel.jsx';
 import DefaultersPanel from './components/DefaultersPanel.jsx';
 import SessionsPanel from './components/SessionsPanel.jsx';
+import AttendancePanel from './components/AttendancePanel.jsx';
+import ExamsPanel from './components/ExamsPanel.jsx';
+import StaffPanel from './components/StaffPanel.jsx';
+import TransportPanel from './components/TransportPanel.jsx';
+import TimetablePanel from './components/TimetablePanel.jsx';
+import LibraryPanel from './components/LibraryPanel.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import PinGate from './components/PinGate.jsx';
 import { installWebApi } from './lib/webapi.js';
@@ -21,8 +27,16 @@ const NAV = [
   { sec: 'Office', secUr: 'دفتر', items: [
     { id: 'dash', label: 'Dashboard', ur: 'ڈیش بورڈ', glyph: '⌂' },
     { id: 'students', label: 'Students', ur: 'طلبہ', glyph: '✎' },
+    { id: 'attendance', label: 'Attendance', ur: 'حاضری', glyph: '✓' },
     { id: 'classes', label: 'Classes', ur: 'جماعتیں', glyph: '▦' },
+    { id: 'timetable', label: 'Timetable', ur: 'ٹائم ٹیبل', glyph: '⊞' },
     { id: 'sessions', label: 'Sessions', ur: 'سیشن', glyph: '▤' },
+  ]},
+  { sec: 'Exams & staff', secUr: 'امتحانات', items: [
+    { id: 'exams', label: 'Exams & marks', ur: 'امتحان', glyph: '∑' },
+    { id: 'staff', label: 'Staff & payroll', ur: 'عملہ', glyph: '▥' },
+    { id: 'transport', label: 'Transport', ur: 'گاڑیاں', glyph: '▶' },
+    { id: 'library', label: 'Library', ur: 'کتب خانہ', glyph: '▤' },
   ]},
   { sec: 'Fees', secUr: 'فیس', items: [
     { id: 'feesetup', label: 'Fee setup', ur: 'فیس', glyph: '⚙' },
@@ -34,9 +48,9 @@ const NAV = [
 ];
 const ROLE_TABS = {
   principal: null, // all
-  accountant: ['dash', 'challans', 'collection', 'defaulters', 'feesetup'],
-  teacher: ['dash', 'students', 'classes'],
-  clerk: ['dash', 'students', 'classes']
+  accountant: ['dash', 'challans', 'collection', 'defaulters', 'feesetup', 'staff'],
+  teacher: ['dash', 'students', 'classes', 'attendance', 'exams', 'timetable', 'library'],
+  clerk: ['dash', 'students', 'classes', 'attendance', 'transport', 'library']
 };
 
 export default function App() {
@@ -225,6 +239,12 @@ export default function App() {
           {tab === 'students' && <StudentsPanel store={store} update={update} />}
           {tab === 'classes' && <ClassesPanel store={store} update={update} />}
           {tab === 'sessions' && <SessionsPanel store={store} update={update} user={user} />}
+          {tab === 'attendance' && <AttendancePanel store={store} update={update} user={user} />}
+          {tab === 'exams' && <ExamsPanel store={store} update={update} />}
+          {tab === 'staff' && <StaffPanel store={store} update={update} />}
+          {tab === 'transport' && <TransportPanel store={store} update={update} />}
+          {tab === 'timetable' && <TimetablePanel store={store} update={update} />}
+          {tab === 'library' && <LibraryPanel store={store} update={update} />}
           {tab === 'feesetup' && <FeeSetupPanel store={store} update={update} />}
           {tab === 'challans' && <ChallansPanel store={store} update={update} />}
           {tab === 'collection' && <CollectionPanel store={store} update={update} user={user} />}

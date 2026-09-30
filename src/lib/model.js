@@ -114,6 +114,17 @@ export function monthlyFeeLines(store, enr, month) {
     amount = Math.max(0, Math.round(amount));
     if (amount > 0) lines.push({ head_id: p.head_id, description: (head && head.name) || 'Fee', amount });
   }
+  // Transport: assigned route adds its fee as a line unless a plan row already
+  // charges a transport head for this class.
+  const t = (store.transport || []).find(x => x.enrolment_id === enr.id);
+  if (t) {
+    const rt = (store.routes || []).find(r => r.id === t.route_id);
+    if (rt && num(rt.fee) > 0) {
+      const tHead = (store.feeHeads || []).find(h => h.kind === 'transport');
+      const already = tHead && plans.some(p => p.head_id === tHead.id);
+      if (!already) lines.push({ head_id: (tHead || {}).id || '', description: `Transport — ${rt.name}`, amount: num(rt.fee) });
+    }
+  }
   return lines.sort((a, b) => (feeHead(store, a.head_id)?.sort_order || 0) - (feeHead(store, b.head_id)?.sort_order || 0));
 }
 
@@ -193,6 +204,104 @@ export function defaulters(store, sessionId) {
     out.push({ enrolment: e, student: st, clsSec: enrLabel(store, e), months: pending.map(c => c.month), due });
   }
   return out.sort((a, b) => b.due - a.due);
+}
+
+// ---------- attendance ----------
+export function attendanceFor(store, dateStr, sectionId) {
+  const rows = {};
+  for (const a of (store.attendance || [])) {
+    if (a.date !== dateStr) continue;
+    const e = enrolment(store, a.enrolment_id);
+    if (e && (!sectionId || e.section_id === sectionId)) rows[a.enrolment_id] = a;
+  }
+  return rows;
+}
+export function markAttendance(store, enrId, dateStr, status, by) {
+  store.attendance = store.attendance || [];
+  const row = store.attendance.find(a => a.enrolment_id === enrId && a.date === dateStr);
+  if (status === '') { if (row) store.attendance = store.attendance.filter(a => a !== row); return; }
+  if (row) { row.status = status; row.marked_by = by; }
+  else store.attendance.push({ id: uid('at'), enrolment_id: enrId, date: dateStr, status, marked_by: by });
+}
+export function attendanceSummary(store, enrId, monthStr) {
+  let p = 0, a = 0, l = 0;
+  for (const r of (store.attendance || [])) {
+    if (r.enrolment_id !== enrId || (monthStr && ym(r.date) !== monthStr)) continue;
+    if (r.status === 'P') p++; else if (r.status === 'A') a++; else if (r.status === 'L') l++;
+  }
+  return { p, a, l, total: p + a + l };
+}
+export function staffAttendanceFor(store, dateStr) {
+  const rows = {};
+  for (const a of (store.staffAttendance || [])) if (a.date === dateStr) rows[a.staff_id] = a;
+  return rows;
+}
+export function markStaffAttendance(store, staffId, dateStr, status, by) {
+  store.staffAttendance = store.staffAttendance || [];
+  const row = store.staffAttendance.find(a => a.staff_id === staffId && a.date === dateStr);
+  if (status === '') { if (row) store.staffAttendance = store.staffAttendance.filter(a => a !== row); return; }
+  if (row) { row.status = status; row.marked_by = by; }
+  else store.staffAttendance.push({ id: uid('sa'), staff_id: staffId, date: dateStr, status, marked_by: by });
+}
+
+// ---------- exams & marks ----------
+export function subjectsFor(store, classId) {
+  return (store.subjects || []).filter(s => !classId || s.class_id === classId)
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+}
+export function gradeFor(store, pct) {
+  const scheme = (store.gradeSchemes || [])[0];
+  const rows = (scheme && scheme.rows) || [
+    { min: 90, g: 'A+' }, { min: 80, g: 'A' }, { min: 70, g: 'B' },
+    { min: 60, g: 'C' }, { min: 50, g: 'D' }, { min: 40, g: 'E' }, { min: 0, g: 'F' }];
+  for (const r of rows) if (pct >= num(r.min)) return r.g;
+  return 'F';
+}
+export function marksFor(store, examId, enrId) {
+  return (store.marks || []).filter(m => m.exam_id === examId && m.enrolment_id === enrId);
+}
+export function reportCard(store, examId, enr) {
+  const subs = subjectsFor(store, enr.class_id);
+  const lines = subs.map(su => {
+    const m = (store.marks || []).find(x => x.exam_id === examId && x.enrolment_id === enr.id && x.subject_id === su.id);
+    const ob = m ? num(m.obtained) : null;
+    const full = num(su.full_marks) || 100;
+    return { subject: su, obtained: ob, full, pass: num(su.pass_marks) || Math.round(full * 0.4), pct: ob === null ? null : Math.round(ob / full * 100) };
+  });
+  const totObt = lines.reduce((t, l) => t + (l.obtained || 0), 0);
+  const totFull = lines.reduce((t, l) => t + l.full, 0);
+  const pct = totFull ? Math.round(totObt / totFull * 100) : 0;
+  return { lines, totObt, totFull, pct, grade: gradeFor(store, pct), fail: lines.some(l => l.obtained !== null && l.obtained < l.pass) };
+}
+export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// ---------- transport ----------
+export function routeFor(store, enrId) {
+  const t = (store.transport || []).find(x => x.enrolment_id === enrId);
+  return t ? (store.routes || []).find(r => r.id === t.route_id) || null : null;
+}
+
+// ---------- payroll ----------
+export function payslipFor(store, staffId, monthStr) {
+  return (store.payslips || []).find(p => p.staff_id === staffId && p.month === monthStr) || null;
+}
+export function payslipLines(store, staff, monthStr) {
+  const heads = (store.salaryHeads || []);
+  const lines = [{ name: 'Basic salary', type: 'earning', amount: num(staff.salary_basic) }];
+  for (const h of heads) lines.push({ name: h.name, type: h.type, amount: num(h.amount) });
+  // unpaid leave deduction: 1/30 of basic per unpaid leave day in the month
+  const absent = (store.staffAttendance || []).filter(a => a.staff_id === staff.id && ym(a.date) === monthStr && a.status === 'A').length;
+  if (absent) lines.push({ name: `Absent days (${absent})`, type: 'deduction', amount: Math.round(num(staff.salary_basic) / 30 * absent) });
+  return lines;
+}
+export function nextPayslipNo(store) {
+  return (store.payslips || []).reduce((m, p) => Math.max(m, num(p.no)), 0) + 1;
+}
+
+// ---------- library ----------
+export function book(store, id) { return (store.books || []).find(b => b.id === id) || null; }
+export function bookOutCount(store, bookId) {
+  return (store.bookIssues || []).filter(i => i.book_id === bookId && !i.returned_on).length;
 }
 
 // ---------- session rollover ----------
@@ -343,6 +452,42 @@ export function sampleStore() {
         bank_ref: i % 3 ? '' : 'HBL-' + (1000 + i), received_by: 'Office'
       });
       ch.status = paidAll ? 'paid' : 'partial';
+    }
+  });
+
+  // --- Phase 2+ sample: subjects, an exam with marks, routes, books ---
+  const subjNames = ['English', 'Mathematics', 'Urdu', 'Science'];
+  [cSix, cSeven].forEach((c, ci) => {
+    subjNames.forEach((n, i) => st.subjects.push({
+      id: uid('su'), class_id: c.id, name: n, full_marks: 100, pass_marks: 40, sort_order: i + 1
+    }));
+  });
+  const exam = { id: uid('ex'), session_id: sess.id, name: 'First Term', term: 'Term 1', held_on: '2026-01-15' };
+  st.exams = [exam];
+  st.enrolments.filter(e => e.class_id === cSix.id).forEach(e => {
+    st.subjects.filter(s => s.class_id === cSix.id).forEach((su, i) => {
+      st.marks.push({ id: uid('mk'), exam_id: exam.id, subject_id: su.id, enrolment_id: e.id, obtained: 35 + ((parseInt(e.roll_no, 10) * 13 + i * 7) % 60) });
+    });
+  });
+  const route = { id: uid('rt'), name: 'Route 1 — Gulberg', driver: 'Naveed Ahmed', phone: '0322-1112233', fee: 1500 };
+  st.routes = [route];
+  st.enrolments.slice(0, 5).forEach(e => st.transport.push({ id: uid('tr'), enrolment_id: e.id, route_id: route.id }));
+  st.salaryHeads = [
+    { id: uid('sh'), name: 'House rent', type: 'earning', amount: 9000 },
+    { id: uid('sh'), name: 'Late arrivals', type: 'deduction', amount: 500 },
+  ];
+  ['Mathematics — Class 6', 'English Grammar — Class 6', 'Urdu Adab — Class 7', 'General Science — Class 7', 'Islamiat — Class 6', 'Computer Basics', 'Story Book — Khirki', 'Dictionary (English-Urdu)'].forEach((t, i) => {
+    st.books.push({ id: uid('bk'), title: t, author: 'Punjab Textbook Board', accession: 'BK-' + String(i + 1).padStart(3, '0'), copies: 2 });
+  });
+  st.bookIssues = [
+    { id: uid('bi'), book_id: st.books[0].id, student_id: st.students[0].id, issued_on: today(), due_on: '', returned_on: '' },
+    { id: uid('bi'), book_id: st.books[3].id, student_id: st.students[20].id, issued_on: today(), due_on: '', returned_on: '' },
+  ];
+  // a few days of attendance for the register
+  st.enrolments.forEach((e, i) => {
+    for (let d = 1; d <= 3; d++) {
+      const status = (i + d) % 9 === 0 ? 'A' : 'P';
+      st.attendance.push({ id: uid('at'), enrolment_id: e.id, date: `${today().slice(0, 8)}0${d}`, status, marked_by: 'Teacher' });
     }
   });
 
