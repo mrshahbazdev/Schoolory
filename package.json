@@ -1,7 +1,7 @@
 {
  "name": "schoolory",
  "productName": "Schoolory",
- "description": "Offline school fee & records office for small schools \u2014 students, classes, fee plans, 3-part bank challans, collection register, defaulters. No account, no internet.",
+ "description": "Offline school fee and records office for small schools \u2014 students, classes, fee plans, 3-part bank challans, collection register, defaulters. No account, no internet.",
  "author": {
   "name": "Muhammad Shahbaz",
   "email": "mrshahbaznns@gmail.com"
@@ -65,13 +65,9 @@
    "publisherDisplayName": "Muhammad Shahbaz",
    "backgroundColor": "#0f172a",
    "addAutoLaunchExtension": false,
-   "capabilities": [
-    "privateNetworkClientServer"
-   ],
    "languages": [
     "en-US"
-   ],
-   "icon": "build/icon.png"
+   ]
   },
   "nsis": {
    "oneClick": false,
