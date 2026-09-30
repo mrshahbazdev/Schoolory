@@ -1,0 +1,96 @@
+{
+ "name": "schoolory",
+ "productName": "Schoolory",
+ "description": "Offline stock and sales register for small shops — items, stock in/out, low-stock alerts, bilingual receipts, day book. No account, no internet.",
+ "author": {
+  "name": "Muhammad Shahbaz",
+  "email": "mrshahbaznns@gmail.com"
+ },
+ "private": true,
+ "version": "1.0.0",
+ "type": "module",
+ "main": "electron/main.cjs",
+ "scripts": {
+  "dev": "concurrently -k \"cross-env BROWSER=none npm run react:dev\" \"npm run electron:dev\"",
+  "react:dev": "vite",
+  "electron:dev": "wait-on tcp:5173 && electron .",
+  "build": "vite build",
+  "dist": "npm run build && electron-builder",
+  "dist:win": "npm run build && electron-builder --win --x64"
+ },
+ "build": {
+  "appId": "com.shahbaz.schoolory",
+  "productName": "Schoolory",
+  "copyright": "Copyright © 2026 Muhammad Shahbaz",
+  "asar": true,
+  "asarUnpack": [
+   "**/*.node",
+   "**/prebuilds/**/*"
+  ],
+  "directories": {
+   "buildResources": "build",
+   "output": "release"
+  },
+  "files": [
+   "dist/**/*",
+   "electron/**/*",
+   "package.json",
+   "!**/*.map"
+  ],
+  "extraMetadata": {
+   "main": "electron/main.cjs"
+  },
+  "win": {
+   "target": [
+    {
+     "target": "nsis",
+     "arch": [
+      "x64"
+     ]
+    },
+    {
+     "target": "appx",
+     "arch": [
+      "x64"
+     ]
+    }
+   ],
+   "icon": "build/icon.ico"
+  },
+  "appx": {
+   "applicationId": "Schoolory",
+   "displayName": "Schoolory",
+   "identityName": "MuhammadShahbaz.Binsorys",
+   "publisher": "CN=82C2C857-730F-4239-B80D-4F1C7E03E8B4",
+   "publisherDisplayName": "Muhammad Shahbaz",
+   "backgroundColor": "#1d4ed8",
+   "addAutoLaunchExtension": false,
+   "capabilities": [
+    "privateNetworkClientServer"
+   ],
+   "languages": [
+    "en-US"
+   ],
+   "icon": "build/icon.png"
+  },
+  "nsis": {
+   "oneClick": false,
+   "allowToChangeInstallationDirectory": true
+  }
+ },
+ "devDependencies": {
+  "@electron/rebuild": "^3.7.2",
+  "@vitejs/plugin-react": "^4.3.0",
+  "concurrently": "^8.2.2",
+  "cross-env": "^7.0.3",
+  "electron": "^30.0.0",
+  "electron-builder": "^24.13.3",
+  "vite": "^5.4.0",
+  "wait-on": "^7.2.0"
+ },
+ "dependencies": {
+  "better-sqlite3-multiple-ciphers": "^11.10.0",
+  "react": "^18.3.1",
+  "react-dom": "^18.3.1"
+ }
+}
