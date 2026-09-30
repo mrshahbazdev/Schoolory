@@ -24,17 +24,19 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, role TEXT, pin TEXT, data TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS items (id TEXT PRIMARY KEY, sku TEXT, name TEXT, stock REAL, data TEXT NOT NULL, updated TEXT);
-CREATE INDEX IF NOT EXISTS idx_items_sku ON items(sku);
-CREATE TABLE IF NOT EXISTS sales (id TEXT PRIMARY KEY, number INTEGER, date TEXT, data TEXT NOT NULL, updated TEXT);
-CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date);
+CREATE TABLE IF NOT EXISTS students (id TEXT PRIMARY KEY, adm_no TEXT, name TEXT, data TEXT NOT NULL, updated TEXT);
+CREATE INDEX IF NOT EXISTS idx_students_adm ON students(adm_no);
+CREATE TABLE IF NOT EXISTS challans (id TEXT PRIMARY KEY, no INTEGER, month TEXT, data TEXT NOT NULL, updated TEXT);
+CREATE INDEX IF NOT EXISTS idx_challans_month ON challans(month);
+CREATE TABLE IF NOT EXISTS receipts (id TEXT PRIMARY KEY, no INTEGER, date TEXT, data TEXT NOT NULL, updated TEXT);
+CREATE INDEX IF NOT EXISTS idx_receipts_date ON receipts(date);
 CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, user TEXT, action TEXT, entity TEXT, entity_id TEXT, data TEXT);
 CREATE TABLE IF NOT EXISTS records (collection TEXT, id TEXT, data TEXT NOT NULL, updated TEXT, PRIMARY KEY (collection, id));
 `;
 
-// Collections with dedicated tables; everything else (stockMoves, expenses,
-// customers, ...) lands in `records`.
-const DEDICATED = new Set(['items', 'sales']);
+// Collections with dedicated tables; everything else (sessions, classes,
+// enrolments, feePlans, ...) lands in `records`.
+const DEDICATED = new Set(['students', 'challans', 'receipts']);
 
 let db = null;
 let lastDoc = null;          // doc as last assembled/saved by THIS process
@@ -78,8 +80,8 @@ function migrateFromJson() {
   const done = (db.prepare(`SELECT v FROM meta WHERE k='migrated'`).get() || {}).v;
   if (done) return;
   const doc = readDoc();
-  if (doc && Array.isArray(doc.items)) {
-    const base = { version: 1, items: [], settings: { users: [] } };
+  if (doc && Array.isArray(doc.students)) {
+    const base = { version: 1, students: [], settings: { users: [] } };
     applyChanges(diffDocs(base, doc), 'migration');
     saveSettings(doc.settings || {}, 'migration');
     if (doc.updatedAt) db.prepare(`INSERT OR REPLACE INTO meta (k, v) VALUES ('updatedAt', ?)`).run(String(doc.updatedAt));
@@ -97,8 +99,9 @@ function migrateFromJson() {
 function loadDoc() {
   openDb();
   const doc = { version: 1 };
-  doc.items = db.prepare(`SELECT data FROM items`).all().map(r => JSON.parse(r.data));
-  doc.sales = db.prepare(`SELECT data FROM sales`).all().map(r => JSON.parse(r.data));
+  doc.students = db.prepare(`SELECT data FROM students`).all().map(r => JSON.parse(r.data));
+  doc.challans = db.prepare(`SELECT data FROM challans`).all().map(r => JSON.parse(r.data));
+  doc.receipts = db.prepare(`SELECT data FROM receipts`).all().map(r => JSON.parse(r.data));
   const s = db.prepare(`SELECT data FROM settings WHERE id = 1`).get();
   doc.settings = s ? JSON.parse(s.data) : {};
   // PIN hashes never leave this process — clients get an 's:x' marker only.
@@ -136,8 +139,9 @@ function diffDocs(base, next) {
 
 function rowCols(collection, row) {
   switch (collection) {
-    case 'items': return [row.id, row.sku || '', row.name || '', row.stock ?? null, JSON.stringify(row), row.updatedAt || ''];
-    case 'sales': return [row.id, row.number ?? null, row.at || row.date || '', JSON.stringify(row), ''];
+    case 'students': return [row.id, row.adm_no || '', row.name || '', JSON.stringify(row), row.updatedAt || ''];
+    case 'challans': return [row.id, row.no ?? null, row.month || '', JSON.stringify(row), ''];
+    case 'receipts': return [row.id, row.no ?? null, row.received_on || row.date || '', JSON.stringify(row), ''];
     default: return [collection, row.id, JSON.stringify(row), ''];
   }
 }
@@ -149,10 +153,12 @@ function applyChanges(changes, actor) {
   const txn = db.transaction(() => {
     for (const [col, c] of Object.entries(changes)) {
       for (const row of c.upserts) {
-        if (col === 'items' || col === 'sales') {
-          const q = col === 'items'
-            ? `INSERT OR REPLACE INTO items (id, sku, name, stock, data, updated) VALUES (?,?,?,?,?,?)`
-            : `INSERT OR REPLACE INTO sales (id, number, date, data, updated) VALUES (?,?,?,?,?)`;
+        if (DEDICATED.has(col)) {
+          const q = col === 'students'
+            ? `INSERT OR REPLACE INTO students (id, adm_no, name, data, updated) VALUES (?,?,?,?,?)`
+            : col === 'challans'
+            ? `INSERT OR REPLACE INTO challans (id, no, month, data, updated) VALUES (?,?,?,?,?)`
+            : `INSERT OR REPLACE INTO receipts (id, no, date, data, updated) VALUES (?,?,?,?,?)`;
           db.prepare(q).run(...rowCols(col, { ...row, updatedAt: now }));
         } else {
           db.prepare(`INSERT OR REPLACE INTO records (collection, id, data, updated) VALUES (?,?,?,?)`)
@@ -161,7 +167,7 @@ function applyChanges(changes, actor) {
         writes++;
       }
       for (const id of c.deletes) {
-        if (col === 'items' || col === 'sales') db.prepare(`DELETE FROM ${col} WHERE id = ?`).run(id);
+        if (DEDICATED.has(col)) db.prepare(`DELETE FROM ${col} WHERE id = ?`).run(id);
         else db.prepare(`DELETE FROM records WHERE collection = ? AND id = ?`).run(col, id);
         writes++;
       }
@@ -214,7 +220,7 @@ function auditRow(actor, entity, entityId) {
  */
 function mergeSave(clientDoc, { actor = 'app', baseRev } = {}) {
   openDb();
-  const baseline = (baseRev && revDocs.get(baseRev)) || lastDoc || { version: 1, items: [], settings: {} };
+  const baseline = (baseRev && revDocs.get(baseRev)) || lastDoc || { version: 1, students: [], settings: {} };
   const changes = diffDocs(baseline, clientDoc);
   const txn = db.transaction(() => {
     const writes = applyChanges(changes, actor);

@@ -15,7 +15,7 @@ function notifyRenderer() {
 
 // LAN host mode (OPT-IN): when enabled in Settings, this PC serves Schoolory to
 // other devices on the same WiFi. Every /api call requires the access code
-// shown on this PC — without it the shop database stays private.
+// shown on this PC — without it the school database stays private.
 const HOST_PORT = 47071;
 
 const MIME = {
@@ -76,7 +76,7 @@ function startServer() {
               try {
                 const payload = JSON.parse(body);
                 const doc = payload.doc || payload;
-                if (!doc || !Array.isArray(doc.items) || !doc.settings) {
+                if (!doc || !Array.isArray(doc.students) || !doc.settings) {
                   res.writeHead(400); res.end('bad doc'); return;
                 }
                 // Record-level merge keyed on the rev this client loaded — rows
@@ -91,8 +91,8 @@ function startServer() {
         }
 
         // Record-level API: /api/rows/<collection>[?q=] and /api/rows/<collection>/<id>
-        // (items, sales have real indexed tables; the rest live
-        // in the generic records store). e.g. GET /api/rows/shops?q=ali
+        // (students, challans, receipts have real indexed tables; the rest live
+        // in the generic records store). e.g. GET /api/rows/students?q=ali
         const rowMatch = url.match(/^\/api\/rows\/([\w-]+)(?:\/([\w-]+))?$/);
         if (rowMatch) {
           const [, col, id] = rowMatch;
@@ -156,7 +156,7 @@ function startServer() {
         res.writeHead(404); res.end('not found'); return;
       }
 
-      // Static app files + SPA fallback (no auth — carries no shop data).
+      // Static app files + SPA fallback (no auth — carries no school data).
       const dist = distDir();
       if (!dist) { res.writeHead(503); res.end('app bundle not found'); return; }
       let fp = path.join(dist, decodeURIComponent(url === '/' ? '/index.html' : url));

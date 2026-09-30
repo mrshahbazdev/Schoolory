@@ -1,7 +1,7 @@
 {
  "name": "schoolory",
  "productName": "Schoolory",
- "description": "Offline stock and sales register for small shops — items, stock in/out, low-stock alerts, bilingual receipts, day book. No account, no internet.",
+ "description": "Offline school fee & records office for small schools \u2014 students, classes, fee plans, 3-part bank challans, collection register, defaulters. No account, no internet.",
  "author": {
   "name": "Muhammad Shahbaz",
   "email": "mrshahbaznns@gmail.com"
@@ -21,7 +21,7 @@
  "build": {
   "appId": "com.shahbaz.schoolory",
   "productName": "Schoolory",
-  "copyright": "Copyright © 2026 Muhammad Shahbaz",
+  "copyright": "Copyright \u00a9 2026 Muhammad Shahbaz",
   "asar": true,
   "asarUnpack": [
    "**/*.node",
@@ -60,10 +60,10 @@
   "appx": {
    "applicationId": "Schoolory",
    "displayName": "Schoolory",
-   "identityName": "MuhammadShahbaz.Binsorys",
+   "identityName": "FROM_PARTNER_CENTER",
    "publisher": "CN=82C2C857-730F-4239-B80D-4F1C7E03E8B4",
    "publisherDisplayName": "Muhammad Shahbaz",
-   "backgroundColor": "#1d4ed8",
+   "backgroundColor": "#0f172a",
    "addAutoLaunchExtension": false,
    "capabilities": [
     "privateNetworkClientServer"

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { emptyStore, defaultSettings } from '../lib/model.js';
+import { emptyStore, defaultSettings, ROLES } from '../lib/model.js';
 
 function LanConnect({ st, mut }) {
   const [info, setInfo] = useState(null);
@@ -8,7 +8,7 @@ function LanConnect({ st, mut }) {
   if (!info) return null;
   if (info.remote) return (
     <div className="pcard" style={{ marginBottom: 14, fontSize: 13 }}>
-      ✅ Connected to the main PC at <b>{info.urls[0]}</b> — everything you enter here saves on the main PC.
+      ✅ Connected to the office PC at <b>{info.urls[0]}</b> — everything you enter here saves on the office PC.
     </div>
   );
   return (
@@ -20,7 +20,7 @@ function LanConnect({ st, mut }) {
           setInfo({ ...info, enabled: r.enabled, error: r.error });
           refresh();
         }} />
-        Share Schoolory on this WiFi — a second counter/till opens it in a browser; all data saves on THIS computer
+        Share Schoolory on this WiFi — other office PCs open it in a browser; all data saves on THIS computer
       </label>
       {info.error && <div style={{ color: '#dc2626', marginTop: 6 }}>⚠ Could not start sharing: {info.error}</div>}
       {info.enabled && (<>
@@ -36,10 +36,10 @@ function LanConnect({ st, mut }) {
             if (!confirm('Regenerate the access code? Every connected device will be locked out until the new code is entered there.')) return;
             await window.api.host.rotateCode(); refresh();
           }}>Regenerate</button>
-          <span className="muted"> — without this code no one on the WiFi can read or change the shop data.</span></div>
+          <span className="muted"> — without this code no one on the WiFi can read or change the school data.</span></div>
       </>)}
-      {!info.enabled && <div className="muted" style={{ marginTop: 6 }}>Off — the store database is not reachable from any other device. Access code for pairing: <code style={{ fontWeight: 700 }}>{info.token}</code></div>}
-      <label className="lbl" style={{ display: 'block', marginTop: 10 }}>Pair code (for app-to-app sync): if THIS PC is the second computer, enter the main PC's access code here
+      {!info.enabled && <div className="muted" style={{ marginTop: 6 }}>Off — the school database is not reachable from any other device. Access code for pairing: <code style={{ fontWeight: 700 }}>{info.token}</code></div>}
+      <label className="lbl" style={{ display: 'block', marginTop: 10 }}>Pair code (for app-to-app sync): if THIS PC is the second computer, enter the office PC's access code here
         <input className="in" value={st.syncCode || ''} placeholder="e.g. A1B2C3D4" onChange={e => mut(x => x.syncCode = e.target.value.trim().toUpperCase())} /></label>
     </div>
   );
@@ -62,25 +62,34 @@ export default function SettingsPanel({ store, update, setStore }) {
 
   return (
     <div className="panel">
-      <h2 className="ptitle">Shop &amp; receipt header</h2>
+      <h2 className="ptitle">School &amp; challan header</h2>
       <div className="form" style={{ marginBottom: 16 }}>
         <div className="frow">
-          <input className="in" style={{ flex: 1 }} value={st.shopName || ''} placeholder="Shop name" onChange={e => mut(x => x.shopName = e.target.value)} />
-          <input className="in" value={st.shopPhone || ''} placeholder="Phone" onChange={e => mut(x => x.shopPhone = e.target.value)} />
-        </div>
-        <div className="frow">
-          <input className="in" style={{ flex: 1 }} value={st.shopAddress || ''} placeholder="Address (prints on receipt)" onChange={e => mut(x => x.shopAddress = e.target.value)} />
+          <input className="in" style={{ flex: 1 }} value={st.schoolName || ''} placeholder="School name" onChange={e => mut(x => x.schoolName = e.target.value)} />
+          <input className="in" value={st.schoolPhone || ''} placeholder="Phone" onChange={e => mut(x => x.schoolPhone = e.target.value)} />
           <input className="in" style={{ width: 110 }} value={st.currency || 'Rs'} placeholder="Currency" onChange={e => mut(x => x.currency = e.target.value)} />
         </div>
         <div className="frow">
-          <input className="in" style={{ flex: 1 }} dir="rtl" value={st.receiptFooter || ''} placeholder="Receipt footer (e.g. شکریہ)" onChange={e => mut(x => x.receiptFooter = e.target.value)} />
-          <label className="chk"><input type="checkbox" checked={st.receiptUrdu !== false} onChange={e => mut(x => x.receiptUrdu = e.target.checked)} /> Urdu on receipts</label>
+          <input className="in" style={{ flex: 1 }} value={st.schoolAddress || ''} placeholder="Address (prints on challan)" onChange={e => mut(x => x.schoolAddress = e.target.value)} />
+        </div>
+        <div className="frow">
+          <input className="in" style={{ flex: 1 }} value={st.challanFooter || ''} placeholder="Challan footer note" onChange={e => mut(x => x.challanFooter = e.target.value)} />
           <label className="chk"><input type="checkbox" checked={!!st.uiUrdu} onChange={e => mut(x => x.uiUrdu = e.target.checked)} /> Urdu interface</label>
+        </div>
+        <div className="frow">
+          <label className="lbl">Letterhead offset (mm) — prints below your printed letterhead
+            <input className="in" style={{ width: 110 }} type="number" min="0" value={st.letterheadOffset || 0} onChange={e => mut(x => x.letterheadOffset = Number(e.target.value) || 0)} /></label>
+          <label className="lbl">Late fee type
+            <select className="in" value={st.lateFeeType || 'none'} onChange={e => mut(x => x.lateFeeType = e.target.value)}>
+              <option value="none">none</option><option value="fixed">fixed amount</option><option value="per_day">per day</option>
+            </select></label>
+          <label className="lbl">Late fee {st.lateFeeType === 'per_day' ? 'per day' : 'amount'}
+            <input className="in" style={{ width: 110 }} type="number" min="0" value={st.lateFeeValue || 0} onChange={e => mut(x => x.lateFeeValue = Number(e.target.value) || 0)} /></label>
         </div>
       </div>
 
-      <h2 className="ptitle">Users &amp; PIN login</h2>
-      <p className="muted" style={{ marginTop: 0 }}>Add users to lock the app with a PIN. Roles: <b>admin</b> (everything), <b>counter</b> (sales + day book only). Leave empty for no login.</p>
+      <h2 className="ptitle">Users, PINs &amp; roles</h2>
+      <p className="muted" style={{ marginTop: 0 }}>Add users to lock the app with a PIN. Roles: <b>principal</b> (everything), <b>accountant</b> (fees + collection), <b>teacher</b> (registers, no money), <b>clerk</b> (admissions only). Leave empty for no login.</p>
       <table className="grid" style={{ marginBottom: 10 }}>
         <thead><tr><th>Name</th><th>Role</th><th>PIN (4-6 digits)</th><th></th></tr></thead>
         <tbody>
@@ -88,7 +97,7 @@ export default function SettingsPanel({ store, update, setStore }) {
             <tr key={u.id}>
               <td><input className="in" value={u.name} onChange={e => mut(x => { x.users.find(z => z.id === u.id).name = e.target.value; })} /></td>
               <td><select className="in" value={u.role} onChange={e => mut(x => { x.users.find(z => z.id === u.id).role = e.target.value; })}>
-                <option value="admin">admin</option><option value="counter">counter</option></select></td>
+                {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{k}</option>)}</select></td>
               <td><input className="in" value={String(u.pin || '').startsWith('s:') ? '' : u.pin} placeholder={String(u.pin || '').startsWith('s:') ? '•••• (saved)' : '4-6 digits'} onChange={e => mut(x => { x.users.find(z => z.id === u.id).pin = e.target.value.replace(/\D/g, '').slice(0, 6); })} /></td>
               <td><button className="icon" onClick={() => mut(x => x.users = x.users.filter(z => z.id !== u.id))}>✕</button></td>
             </tr>
@@ -96,7 +105,7 @@ export default function SettingsPanel({ store, update, setStore }) {
         </tbody>
       </table>
       <div className="frow" style={{ marginBottom: 14 }}>
-        <button className="btn small ghost" onClick={() => mut(x => { x.users = x.users || []; x.users.push({ id: 'u' + Date.now(), name: 'Counter staff', role: 'counter', pin: '0000' }); })}>+ User</button>
+        <button className="btn small ghost" onClick={() => mut(x => { x.users = x.users || []; x.users.push({ id: 'u' + Date.now(), name: 'Office staff', role: 'clerk', pin: '0000' }); })}>+ User</button>
       </div>
 
       <h2 className="ptitle">Local connection — use Schoolory on a second PC</h2>
@@ -107,7 +116,7 @@ export default function SettingsPanel({ store, update, setStore }) {
         <label className="lbl" style={{ flex: 1 }}>Backup folder (USB/cloud) — an encrypted copy is written here daily
           <input className="in" value={st.backupFolder || ''} placeholder="e.g. D:\Schoolory Backups" onChange={e => mut(x => x.backupFolder = e.target.value)} /></label>
         <label className="lbl" style={{ flex: 1 }}>Sync folder — app writes <code>schoolory-sync.json</code> here; same path on every PC keeps them in sync
-          <input className="in" value={st.syncFolder || ''} placeholder="e.g. \\COUNTER2\shared" onChange={e => mut(x => x.syncFolder = e.target.value)} /></label>
+          <input className="in" value={st.syncFolder || ''} placeholder="e.g. \\OFFICE2\shared" onChange={e => mut(x => x.syncFolder = e.target.value)} /></label>
       </div>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, fontSize: 13 }}>
         <input type="checkbox" checked={st.syncAuto !== false} onChange={e => mut(x => x.syncAuto = e.target.checked)} />

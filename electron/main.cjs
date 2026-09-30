@@ -38,7 +38,7 @@ function init() {
   });
 }
 
-// Shop records hold stock counts and sale ledgers — the renderer should
+// School records hold children's data — the renderer should
 // never be able to reach the network, full stop.
 function applyCSP() {
   const policy = isDev

@@ -26,7 +26,7 @@ function registerSyncIPC() {
   // Renderer publishes the newest store after every save.
   ipcMain.handle('sync:publish', (_e, { doc }) => {
     try {
-      if (doc && Array.isArray(doc.items)) {
+      if (doc && Array.isArray(doc.students)) {
         latestDoc = doc;
         latestAt = doc.updatedAt || Date.now();
         pairCode = (doc.settings && doc.settings.syncCode) || pairCode;
@@ -81,7 +81,7 @@ function registerSyncIPC() {
           inflight.delete(rinfo.address);
           try {
             const doc = JSON.parse(body);
-            if (doc && Array.isArray(doc.items) && (doc.updatedAt || 0) > latestAt) {
+            if (doc && Array.isArray(doc.students) && (doc.updatedAt || 0) > latestAt) {
               const w = BrowserWindow.getAllWindows()[0];
               if (w) w.webContents.send('schoolory:sync-apply', doc);
             }

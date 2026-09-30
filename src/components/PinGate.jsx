@@ -15,7 +15,7 @@ export default function PinGate({ store, onLogin }) {
     <div className="pingate">
       <div className="pinbox">
         <div className="pmark">▣</div>
-        <div className="pname">{store.settings.shopName || 'Schoolory'}</div>
+        <div className="pname">{store.settings.schoolName || 'Schoolory'}</div>
         <div className="muted" style={{ marginBottom: 14 }}>Enter your PIN</div>
         <input className="in pin" type="password" inputMode="numeric" autoFocus value={pin}
           onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setPin(v); tryPin(v); }} />

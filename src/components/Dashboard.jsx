@@ -1,46 +1,51 @@
-import { fmt, dayTotals, today, lowStock, num } from '../lib/model.js';
+import { fmt, today, activeEnrolments, currentSession, collectionTotals, defaulters, challanOutstanding } from '../lib/model.js';
 
 export default function Dashboard({ store, go }) {
-  const d = dayTotals(store, today());
-  const low = lowStock(store);
-  const stale = store.settings.backupFolder && store.settings.lastBackupAt && (Date.now() - new Date(store.settings.lastBackupAt + 'T00:00').getTime()) / 864e5 > 7;
-  const staleNoDate = store.settings.backupFolder && !store.settings.lastBackupAt;
+  const sess = currentSession(store);
+  const active = activeEnrolments(store);
+  const { total: todayColl, receipts } = collectionTotals(store, today());
+  const defs = defaulters(store);
+  const dueTotal = defs.reduce((t, d) => t + d.due, 0);
+  const unpaidCount = (store.challans || []).filter(c => c.status !== 'void' && challanOutstanding(store, c.id) > 0).length;
+  const cur = store.settings.currency;
+
+  const cards = [
+    { label: 'Active students', value: active.length, sub: sess ? `session ${sess.name}` : 'no session', onClick: () => go('students') },
+    { label: "Today's collection", value: fmt(todayColl, cur), sub: `${receipts.length} receipt(s)`, onClick: () => go('collection') },
+    { label: 'Defaulters', value: defs.length, sub: fmt(dueTotal, cur) + ' outstanding', onClick: () => go('defaulters') },
+    { label: 'Unpaid challans', value: unpaidCount, sub: 'all months', onClick: () => go('challans') },
+  ];
 
   return (
     <div className="panel">
-      {(stale || staleNoDate) && (
-        <div className="allergy">⚠ Backup {staleNoDate ? 'has never run' : `is ${Math.floor((Date.now() - new Date(store.settings.lastBackupAt + 'T00:00').getTime()) / 864e5)} days old`} — open Settings → backup, or press Backup in the top bar.</div>
+      <h1 className="ptitle" style={{ marginTop: 0 }}>{store.settings.schoolName || 'Schoolory'}</h1>
+      <p className="muted" style={{ marginTop: -6 }}>
+        {sess ? <>Current session: <b>{sess.name}</b></> : 'No academic session yet — create one in Sessions.'}
+        {store.settings.schoolAddress ? ` · ${store.settings.schoolAddress}` : ''}
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginTop: 14 }}>
+        {cards.map(c => (
+          <div key={c.label} className="pcard" onClick={c.onClick} style={{ cursor: 'pointer' }}>
+            <div className="muted" style={{ fontSize: 12 }}>{c.label}</div>
+            <div style={{ fontSize: 26, fontWeight: 800, marginTop: 4 }}>{c.value}</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{c.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <h2 className="ptitle" style={{ marginTop: 22 }}>Quick actions</h2>
+      <div className="row">
+        <button className="btn" onClick={() => go('students')}>+ Admission</button>
+        <button className="btn ghost" onClick={() => go('challans')}>Generate challans</button>
+        <button className="btn ghost" onClick={() => go('collection')}>Receive fee</button>
+        <button className="btn ghost" onClick={() => go('defaulters')}>Defaulter list</button>
+      </div>
+
+      {!sess && (
+        <div className="pcard" style={{ marginTop: 18, borderLeft: '3px solid var(--warn)' }}>
+          Setup order: <b>Sessions</b> → <b>Classes &amp; sections</b> → <b>Fee setup</b> → admit students → generate challans.
+        </div>
       )}
-
-      <div className="cards">
-        <div className="card"><div className="clabel">Today's sales / آج کی فروخت</div><div className="cval">{fmt(d.gross, store.settings.currency)}</div><div className="csub">{d.sales.length} receipts</div></div>
-        <div className="card"><div className="clabel">Collected / وصولی</div><div className="cval" style={{ color: 'var(--ok)' }}>{fmt(d.paid, store.settings.currency)}</div><div className="csub">cash + other methods</div></div>
-        <div className="card"><div className="clabel">Today's expenses / اخراجات</div><div className="cval" style={{ color: 'var(--danger)' }}>{fmt(d.exp, store.settings.currency)}</div><div className="csub">net {fmt(d.net, store.settings.currency)}</div></div>
-      </div>
-
-      <div className="cards" style={{ gridTemplateColumns: '1fr 1fr' }}>
-        <div className="card">
-          <div className="clabel">Low stock ({low.length}) — reorder needed</div>
-          {low.slice(0, 8).map(i => (
-            <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 13 }}>
-              <span><b>{i.name}</b> <span className="muted">{i.sku}</span></span>
-              <span style={{ color: i.stock <= 0 ? 'var(--danger)' : '#b45309', fontWeight: 700 }}>{num(i.stock)} {i.unit || ''}</span>
-            </div>
-          ))}
-          {!low.length && <div className="muted" style={{ paddingTop: 8 }}>All items above their minimum stock level.</div>}
-          <button className="btn small ghost" style={{ marginTop: 10 }} onClick={() => go('stock')}>Stock in / out →</button>
-        </div>
-        <div className="card">
-          <div className="clabel">Latest sales</div>
-          {[...(store.sales || [])].sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 8).map(s => (
-            <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--line-soft)', fontSize: 13 }}>
-              <span>#{s.number} <span className="muted">{(s.at || '').slice(11, 16)} · {(s.lines || []).length} items</span></span>
-              <b>{fmt(s.total, store.settings.currency)}</b>
-            </div>
-          ))}
-          <button className="btn small ghost" style={{ marginTop: 10 }} onClick={() => go('daybook')}>Day book →</button>
-        </div>
-      </div>
     </div>
   );
 }
